@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Christmas - Final with Green Tinsel</title>
+    <title>Magic Christmas - Mixed Media (Video & Photo)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -50,7 +50,7 @@
     
     <div id="ui-layer">
         <div class="guide">
-            🖐 <b>Mở tay:</b> Xem ảnh (Gạt trái/phải để đổi ảnh) &nbsp;|&nbsp; 🫶 <b>Tim:</b> Yêu thương &nbsp;|&nbsp; ✊ <b>Nắm tay:</b> Cây thông
+            🖐 <b>Mở tay:</b> Xem Album (Gạt trái/phải) &nbsp;|&nbsp; 🫶 <b>Tim:</b> Yêu thương &nbsp;|&nbsp; ✊ <b>Nắm tay:</b> Cây thông
         </div>
         <button id="btnStart" onclick="startSystem()">START MAGIC</button>
     </div>
@@ -68,14 +68,48 @@
 
         const loader = new THREE.TextureLoader();
         
-        // --- DANH SÁCH ẢNH ---
-        // Bạn nhớ thay ảnh thật vào đây
-        const photoFiles = ['./image1.jpeg', './image2.jpeg', './image3.jpeg', './image4.jpeg', './image5.jpeg'];
+        // --- CẤU HÌNH DANH SÁCH FILE (MIX CẢ ẢNH VÀ VIDEO) ---
+        // Hỗ trợ: .jpg, .jpeg, .png, .mp4, .webm
+        const mediaFiles = [
+            './image1.jpeg',     // Ảnh
+            './video1.mp4',      // Video (Nhớ chép file mp4 vào)
+            './image2.jpeg',      // Ảnh PNG
+            './video2.mp4',      // Video khác
+            './image3.jpeg'      // Ảnh
+        ];
         
-        const photoTextures = [];
-        // Xử lý load ảnh có bắt lỗi để tránh crash
-        photoFiles.forEach((f, i) => {
-             photoTextures[i] = loader.load(f, undefined, undefined, () => console.log('Err loading ' + f));
+        // Mảng chứa các Texture (bao gồm cả VideoTexture và Texture thường)
+        const mediaTextures = [];
+        const videoElements = []; // Lưu reference video để play khi cần
+
+        function isVideo(filename) {
+            return filename.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/i);
+        }
+
+        // --- HÀM NẠP TÀI NGUYÊN ĐA PHƯƠNG TIỆN ---
+        mediaFiles.forEach((file, i) => {
+            if (isVideo(file)) {
+                // Xử lý Video
+                const video = document.createElement('video');
+                video.src = file;
+                video.crossOrigin = "anonymous";
+                video.loop = true;
+                video.muted = true; // Bắt buộc mute để autoplay trên trình duyệt
+                video.playsInline = true;
+                video.load(); 
+                // Play ngay sẽ được gọi trong startSystem để đảm bảo tương tác người dùng
+                
+                const texture = new THREE.VideoTexture(video);
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.format = THREE.RGBFormat;
+                
+                mediaTextures[i] = texture;
+                videoElements.push(video);
+            } else {
+                // Xử lý Ảnh
+                mediaTextures[i] = loader.load(file, undefined, undefined, () => console.log('Err loading ' + file));
+            }
         });
 
         function createCustomTexture(type) {
@@ -97,11 +131,10 @@
                 ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
 
             } else if (type === 'green_sparkle') { 
-                // --- TEXTURE XANH LÁ MỚI ---
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
                 grd.addColorStop(0, '#FFFFFF'); 
-                grd.addColorStop(0.2, '#90EE90'); // Light Green
-                grd.addColorStop(0.5, '#008000'); // Green
+                grd.addColorStop(0.2, '#90EE90'); 
+                grd.addColorStop(0.5, '#008000'); 
                 grd.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
 
@@ -116,7 +149,7 @@
         const textures = {
             gold: createCustomTexture('gold_glow'),
             red: createCustomTexture('red_light'),
-            green: createCustomTexture('green_sparkle'), // Thêm texture xanh
+            green: createCustomTexture('green_sparkle'), 
             gift: createCustomTexture('gift_red')
         };
 
@@ -124,7 +157,7 @@
             goldCount: 2000, 
             redCount: 300, 
             giftCount: 150, 
-            greenCount: 600, // Số lượng hạt kim tuyến xanh
+            greenCount: 600, 
             explodeRadius: 65, 
             photoOrbitRadius: 25, 
             treeHeight: 70, 
@@ -132,14 +165,13 @@
         };
 
         let scene, camera, renderer;
-        let groupGold, groupRed, groupGift, groupGreen; // Thêm groupGreen
+        let groupGold, groupRed, groupGift, groupGreen; 
         let photoMeshes = [];    
         let titleMesh, starMesh, loveMesh;
         
         let state = 'TREE'; 
         let selectedIndex = 0;
 
-        // --- BIẾN XOAY THEO NẤC (STEP ROTATION) ---
         let targetHandX = 0.5; 
         let smoothHandX = 0.5; 
         
@@ -166,7 +198,7 @@
 
             groupGold = createParticleSystem('gold', CONFIG.goldCount, 2.0);
             groupRed = createParticleSystem('red', CONFIG.redCount, 3.5); 
-            groupGreen = createParticleSystem('green', CONFIG.greenCount, 2.5); // Tạo dây kim tuyến
+            groupGreen = createParticleSystem('green', CONFIG.greenCount, 2.5); 
             groupGift = createParticleSystem('gift', CONFIG.giftCount, 3.0); 
 
             createPhotos();
@@ -183,23 +215,16 @@
             const phases = []; 
             
             for(let i=0; i<count; i++) {
-                // --- TÍNH TOÁN VỊ TRÍ CÂY THÔNG ---
                 if (type === 'green') {
-                    // Logic xoắn ốc cho dây kim tuyến
-                    const turns = 5; // Số vòng xoắn quanh cây
+                    const turns = 5; 
                     const currentTurn = (i / count) * turns;
                     const h = (i / count) * CONFIG.treeHeight;
                     const y = h - CONFIG.treeHeight / 2;
-                    
-                    // Bán kính tại độ cao h (hình nón)
                     const maxR = (1 - (h / CONFIG.treeHeight)) * CONFIG.treeBaseRadius;
-                    // Cộng thêm 1 chút để dây kim tuyến nằm nổi lên trên lá vàng
                     const r = maxR + 1.5; 
-                    
                     const theta = currentTurn * Math.PI * 2;
                     pTreeTargets.push(r * Math.cos(theta), y, r * Math.sin(theta));
                 } else {
-                    // Logic ngẫu nhiên cho Gold, Red
                     const h = Math.random() * CONFIG.treeHeight; 
                     const y = h - CONFIG.treeHeight / 2;
                     let radiusRatio = (type === 'gold') ? Math.sqrt(Math.random()) : 0.9 + Math.random()*0.1;
@@ -209,14 +234,12 @@
                     pTreeTargets.push(r * Math.cos(theta), y, r * Math.sin(theta));
                 }
 
-                // --- TÍNH TOÁN VỊ TRÍ NỔ (EXPLODE) ---
                 const u = Math.random(); const v = Math.random();
                 const phi = Math.acos(2 * v - 1); const lam = 2 * Math.PI * u;
                 let radMult = (type === 'gift') ? 1.2 : 1.0;
                 const rad = CONFIG.explodeRadius * Math.cbrt(Math.random()) * radMult;
                 pExplodeTargets.push(rad * Math.sin(phi) * Math.cos(lam), rad * Math.sin(phi) * Math.sin(lam), rad * Math.cos(phi));
 
-                // --- TÍNH TOÁN HÌNH TRÁI TIM (HEART) ---
                 const tHeart = Math.random() * Math.PI * 2;
                 let hx = 16 * Math.pow(Math.sin(tHeart), 3);
                 let hy = 13 * Math.cos(tHeart) - 5 * Math.cos(2*tHeart) - 2 * Math.cos(3*tHeart) - Math.cos(4*tHeart);
@@ -241,7 +264,7 @@
             
             if(type === 'gold') baseColor.setHex(0xFFD700);
             else if(type === 'red') baseColor.setHex(0xFF0000);
-            else if(type === 'green') baseColor.setHex(0x00FF00); // Màu xanh gốc
+            else if(type === 'green') baseColor.setHex(0x00FF00); 
             else baseColor.setHex(0xFFFFFF);
 
             for(let i=0; i<count; i++) {
@@ -260,12 +283,15 @@
         }
 
         function createPhotos() {
+            // Giữ nguyên khung ảnh vuông
             const geo = new THREE.PlaneGeometry(8, 8);
             const borderGeo = new THREE.PlaneGeometry(9, 9); 
             const borderMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 }); 
 
-            for(let i=0; i<5; i++) {
-                const mat = new THREE.MeshBasicMaterial({ map: photoTextures[i], side: THREE.DoubleSide });
+            // Duyệt qua số lượng file đã cấu hình (dựa vào độ dài mảng mediaFiles)
+            for(let i=0; i < mediaFiles.length; i++) {
+                // Tạo material mặc định màu đen trước khi texture load xong
+                const mat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
                 const mesh = new THREE.Mesh(geo, mat);
                 const border = new THREE.Mesh(borderGeo, borderMat);
                 border.position.z = -0.1; 
@@ -349,7 +375,7 @@
                     
                     if(type === 'red') brightness = 0.5 + 0.5 * Math.sin(time * 3 + phases[i]);
                     else if(type === 'gold') brightness = 0.8 + 0.4 * Math.sin(time * 10 + phases[i]);
-                    else if(type === 'green') brightness = 0.7 + 0.5 * Math.sin(time * 8 + phases[i]); // Green blink
+                    else if(type === 'green') brightness = 0.7 + 0.5 * Math.sin(time * 8 + phases[i]); 
                     
                     colors[i*3] = baseColor.r * brightness; colors[i*3+1] = baseColor.g * brightness; colors[i*3+2] = baseColor.b * brightness;
                 }
@@ -384,14 +410,13 @@
             // --- LOGIC GẠT TAY ĐỔI ẢNH (CAROUSEL) ---
             smoothHandX = lerp(smoothHandX, targetHandX, 0.1); 
 
-            // Tính góc xoay đích dựa trên vị trí index của ảnh
-            const angleStep = (Math.PI * 2) / 5;
+            // Số lượng ảnh/video để chia góc xoay
+            const totalItems = mediaFiles.length; 
+            const angleStep = (Math.PI * 2) / totalItems;
             const targetRotation = targetIndexPosition * angleStep;
 
-            // Xoay nhẹ nhàng đến vị trí đích
             globalRotationY = lerp(globalRotationY, targetRotation, 0.08);
 
-            // Kiểm tra cử chỉ nếu chưa bị khóa và đang ở chế độ xem ảnh
             if (!isRotationLocked && (state === 'EXPLODE' || state === 'PHOTO')) {
                 if (smoothHandX < 0.35) { // Gạt sang trái
                     targetIndexPosition--; 
@@ -407,12 +432,22 @@
 
             if(groupGold) updateParticleGroup(groupGold, 'gold', state, speed, time);
             if(groupRed) updateParticleGroup(groupRed, 'red', state, speed, time);
-            if(groupGreen) updateParticleGroup(groupGreen, 'green', state, speed, time); // Update green tinsel
+            if(groupGreen) updateParticleGroup(groupGreen, 'green', state, speed, time); 
             if(groupGift) updateParticleGroup(groupGift, 'gift', state, speed, time);
 
+            // Cập nhật Texture cho các khung ảnh
             photoMeshes.forEach((mesh, i) => {
-                if(!mesh.material.map && photoTextures[i]) {
-                    mesh.material.map = photoTextures[i]; mesh.material.needsUpdate = true;
+                // Kiểm tra nếu texture đã sẵn sàng (loaded)
+                if(mediaTextures[i]) {
+                    // Nếu chưa gán map hoặc map khác thì gán vào
+                    if(mesh.material.map !== mediaTextures[i]) {
+                        mesh.material.map = mediaTextures[i]; 
+                        mesh.material.needsUpdate = true;
+                        // Nếu là video texture, đảm bảo màu sắc đúng
+                        if(mediaTextures[i].isVideoTexture) {
+                            mesh.material.color.setHex(0xFFFFFF);
+                        }
+                    }
                 }
             });
 
@@ -423,7 +458,6 @@
                 starMesh.material.opacity = 0.7 + 0.3*Math.sin(time*5);
                 photoMeshes.forEach(m => { m.scale.lerp(new THREE.Vector3(0,0,0), 0.1); m.visible = false; });
                 
-                // Ở chế độ Tree, cho cây tự xoay nhẹ
                 targetIndexPosition += 0.002; 
 
             } else if (state === 'HEART') {
@@ -435,7 +469,8 @@
             } else if (state === 'EXPLODE') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = false;
                 
-                const angleStep = (Math.PI * 2) / 5;
+                const totalItems = mediaFiles.length;
+                const angleStep = (Math.PI * 2) / totalItems;
                 let bestIdx = 0; let maxZ = -999;
                 
                 photoMeshes.forEach((mesh, i) => {
@@ -477,7 +512,15 @@
 
         function startSystem() {
             document.getElementById('btnStart').style.display = 'none';
+            
+            // Play nhạc nền
             bgMusic.play().catch(e => console.log(e));
+            
+            // Play tất cả video (vì trình duyệt chặn autoplay nếu không có tương tác người dùng)
+            videoElements.forEach(v => {
+                v.play().catch(err => console.log("Video autoplay blocked:", err));
+            });
+
             init3D();
 
             const video = document.getElementsByClassName('input_video')[0];
@@ -501,7 +544,7 @@
                 else if(results.multiHandLandmarks.length > 0) {
                     detectedState = checkOneHand(results.multiHandLandmarks[0]);
                 } else {
-                    targetHandX = 0.5; // Reset tay về giữa
+                    targetHandX = 0.5; 
                 }
 
                 if (detectedState !== pendingState) {
