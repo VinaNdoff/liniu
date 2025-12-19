@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Christmas - Final Fixed</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script> <!-- Updated to newer version -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
@@ -38,20 +38,35 @@
         #camera-preview { display: none !important; }
         #video-hidden-container { display: none; }
 
-        /* DEBUG LOG: Để bạn biết chính xác tiến trình */
+        /* DEBUG LOG */
         #debug-log {
-            position: absolute; top: 0; left: 0; width: 100%; max-height: 30vh;
-            overflow-y: auto; background: rgba(0, 0, 0, 0.5); color: #00FF00;
-            font-family: monospace; font-size: 11px; padding: 5px;
+            position: absolute; top: 0; left: 0; width: 100%; max-height: 40vh;
+            overflow-y: auto; background: rgba(0, 0, 0, 0.7); color: #00FF00;
+            font-family: monospace; font-size: 11px; padding: 8px;
             z-index: 9999; pointer-events: none; white-space: pre-wrap;
+            transition: opacity 0.3s;
         }
         .log-err { color: #FF3333; font-weight: bold; }
         .log-warn { color: #FFFF00; }
+
+        /* Nút bật/tắt log */
+        #debug-toggle {
+            position: absolute; top: 10px; left: 10px; z-index: 10000; pointer-events: auto;
+        }
+        #debug-toggle button {
+            all: unset; padding: 8px 14px; font-size: 12px;
+            background: rgba(0,0,0,0.7); color: #0f0; border: 1px solid #0f0;
+            border-radius: 6px; cursor: pointer; box-shadow: 0 0 10px rgba(0,255,0,0.3);
+        }
     </style>
 </head>
 <body>
     
     <div id="debug-log">System Ready.<br></div>
+
+    <div id="debug-toggle">
+        <button onclick="toggleDebug()">Ẩn Log</button>
+    </div>
 
     <div id="ui-layer">
         <div class="guide">
@@ -78,6 +93,19 @@
             logDiv.scrollTop = logDiv.scrollHeight;
             console.log(msg);
         }
+
+        function toggleDebug() {
+            const log = document.getElementById('debug-log');
+            const btn = document.querySelector('#debug-toggle button');
+            if (log.style.display === 'none') {
+                log.style.display = 'block';
+                btn.textContent = 'Ẩn Log';
+            } else {
+                log.style.display = 'none';
+                btn.textContent = 'Hiện Log';
+            }
+        }
+
         window.onerror = function(msg, source, line) {
             logToScreen(`CRITICAL ERROR: ${msg} (Line ${line})`, 'error');
         };
@@ -87,10 +115,9 @@
         bgMusic.loop = true; bgMusic.volume = 1.0;
 
         const loader = new THREE.TextureLoader();
-        loader.setCrossOrigin('anonymous'); // Added for better cross-origin handling
+        loader.setCrossOrigin('anonymous');
 
-        // --- DANH SÁCH FILE ---
-        // Lưu ý: Tên file phải khớp chính xác (Hoa/Thường) - Đã giả sử lowercase để tương thích GitHub Pages
+        // --- DANH SÁCH FILE (đảm bảo tên file đúng chính xác) ---
         const mediaFiles = [
             './image1.jpeg',     
             './video1.mp4',      
@@ -106,7 +133,7 @@
             return filename.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/i);
         }
 
-        // 1. Tạo khung tranh (Lưới 3D) trước
+        // 1. Tạo khung tranh trước
         function initEmptyMeshes(scene) {
             const geo = new THREE.PlaneGeometry(8, 8);
             const borderGeo = new THREE.PlaneGeometry(9, 9); 
@@ -123,17 +150,17 @@
                 mesh.scale.set(0,0,0);
                 
                 scene.add(mesh);
-                photoMeshes.push(mesh); // Đẩy vào mảng để dùng sau
+                photoMeshes.push(mesh);
             });
             logToScreen(`Đã tạo ${photoMeshes.length} khung tranh.`);
         }
 
-        // 2. Sau đó mới tải nội dung đắp vào
+        // 2. Load nội dung (ảnh + video)
         function loadMediaContent() {
             const container = document.getElementById('video-hidden-container');
 
             mediaFiles.forEach((file, i) => {
-                const mesh = photoMeshes[i]; // Lúc này mesh đã tồn tại, không bị undefined nữa
+                const mesh = photoMeshes[i];
 
                 if (!mesh) {
                     logToScreen(`Lỗi: Không tìm thấy khung tranh thứ ${i}`, 'error');
@@ -153,8 +180,7 @@
                     
                     container.appendChild(video);
                     
-                    video.play().then(() => { /* Playing */ })
-                         .catch(e => logToScreen(`Video ${file} chưa chạy ngay: ${e.message}`, 'warn'));
+                    video.play().catch(e => logToScreen(`Video ${file} chưa chạy ngay: ${e.message}`, 'warn'));
 
                     activeVideos.push({ video: video, mesh: mesh });
 
@@ -162,11 +188,10 @@
                     vidTexture.minFilter = THREE.LinearFilter;
                     vidTexture.magFilter = THREE.LinearFilter;
                     vidTexture.format = THREE.RGBFormat;
-                    vidTexture.needsUpdate = true; // Added for better texture update
-                    
+
                     mesh.material.map = vidTexture;
-                    mesh.material.needsUpdate = true; // CRITICAL: Added to fix line 162/170 issue
-                    
+                    mesh.material.needsUpdate = true;
+
                 } else {
                     logToScreen(`Đang load Ảnh: ${file}`);
                     loader.load(
@@ -175,14 +200,13 @@
                             mesh.material.map = texture;
                             mesh.material.color.setHex(0xFFFFFF);
                             mesh.material.needsUpdate = true;
-                            mesh.visible = true; 
-                            logToScreen(`-> Ảnh ${file} OK`);
+                            logToScreen(`-> Ảnh ${file} load thành công`);
                         },
                         undefined,
                         (err) => {
-                            logToScreen(`LỖI: Không tải được ${file}`, 'error');
-                            mesh.material.color.setHex(0xFF0000); 
-                            mesh.visible = true;
+                            logToScreen(`LỖI tải ảnh: ${file}`, 'error');
+                            mesh.material.color.setHex(0xFF3333);
+                            mesh.material.needsUpdate = true;
                         }
                     );
                 }
@@ -253,7 +277,6 @@
             groupGreen = createParticleSystem('green', CONFIG.greenCount, 2.5); 
             groupGift = createParticleSystem('gift', CONFIG.giftCount, 3.0); 
 
-            // QUAN TRỌNG: Gọi hàm này để tạo mesh TRƯỚC khi load media
             initEmptyMeshes(scene);
             
             createDecorations();
@@ -435,12 +458,20 @@
             if(groupGreen) updateParticleGroup(groupGreen, 'green', speed, time); 
             if(groupGift) updateParticleGroup(groupGift, 'gift', state, speed, time);
 
-            activeVideos.forEach(item => {
-                const { video, mesh } = item;
-                if(video.paused && video.readyState >= 2) { video.play().catch(e => {}); }
-                if (video.readyState >= video.HAVE_ENOUGH_DATA) { // Updated for better readiness check
-                     mesh.visible = true; mesh.material.color.setHex(0xFFFFFF);
-                     if(mesh.material.map) mesh.material.map.needsUpdate = true; // Added to force video frame update
+            // Xử lý hiển thị ảnh & video (sửa lỗi ảnh không hiện)
+            photoMeshes.forEach(mesh => {
+                if (mesh.material.map) {
+                    if (mesh.material.map instanceof THREE.VideoTexture) {
+                        const video = mesh.material.map.image;
+                        if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+                            mesh.visible = true;
+                            mesh.material.map.needsUpdate = true;
+                        }
+                        if (video.paused) video.play().catch(() => {});
+                    } else {
+                        // Ảnh tĩnh: chỉ cần có texture là hiện
+                        mesh.visible = true;
+                    }
                 }
             });
 
@@ -449,7 +480,7 @@
                 titleMesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
                 starMesh.rotation.z -= 0.02; 
                 starMesh.material.opacity = 0.7 + 0.3*Math.sin(time*5);
-                photoMeshes.forEach(m => { m.scale.lerp(new THREE.Vector3(0,0,0), 0.1); m.visible = false; });
+                photoMeshes.forEach(m => { m.scale.lerp(new THREE.Vector3(0,0,0), 0.1); });
                 targetIndexPosition += 0.002; 
             } else if (state === 'HEART') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = true;
@@ -490,10 +521,7 @@
             document.getElementById('btnStart').style.display = 'none';
             bgMusic.play().catch(e => logToScreen("Click lại để bật nhạc", 'warn'));
             
-            // THỨ TỰ SỬA LỖI:
-            // 1. Tạo 3D trước (để có mesh)
             init3D();
-            // 2. Load media (để gán vào mesh)
             loadMediaContent();
 
             logToScreen("Đang bật Camera...");
@@ -502,14 +530,14 @@
             hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
             hands.onResults(results => {
                 let detectedState = 'TREE'; 
-                if (results.multiHandLandmarks.length === 2) {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
                     const h1 = results.multiHandLandmarks[0]; const h2 = results.multiHandLandmarks[1];
                     const distIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
                     const distThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
                     if (distIndex < 0.15 && distThumb < 0.15) detectedState = 'HEART';
                     else detectedState = checkOneHand(results.multiHandLandmarks[0]);
                 }
-                else if(results.multiHandLandmarks.length > 0) detectedState = checkOneHand(results.multiHandLandmarks[0]);
+                else if(results.multiHandLandmarks && results.multiHandLandmarks.length > 0) detectedState = checkOneHand(results.multiHandLandmarks[0]);
                 else targetHandX = 0.5; 
 
                 if (detectedState !== pendingState) { pendingState = detectedState; stateCounter = 0; } 
@@ -521,10 +549,9 @@
                 .then(() => logToScreen("Camera đã chạy!"))
                 .catch(e => logToScreen(`LỖI CAMERA: ${e.message}`, 'error'));
             
-            // Added for mobile camera permission
             navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => logToScreen("Camera OK trên thiết bị này"))
-                .catch(e => logToScreen(`LỖI CAMERA: ${e.message} - Thường do không HTTPS hoặc mobile block`, 'error'));
+                .then(() => logToScreen("Quyền camera đã được cấp"))
+                .catch(e => logToScreen(`LỖI CAMERA: ${e.message}`, 'error'));
         }
 
         function checkOneHand(lm) {
@@ -532,7 +559,9 @@
             const tips = [8,12,16,20]; const wrist = lm[0];
             let openDist = 0; tips.forEach(i => openDist += Math.hypot(lm[i].x-wrist.x, lm[i].y-wrist.y));
             const avgDist = openDist / 4; const pinchDist = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
-            if (avgDist < 0.25) return 'TREE'; else if (pinchDist < 0.05) return 'PHOTO'; else return 'EXPLODE'; 
+            if (avgDist < 0.25) return 'TREE'; 
+            else if (pinchDist < 0.05) return 'PHOTO'; 
+            else return 'EXPLODE'; 
         }
 
         window.addEventListener('resize', () => {
