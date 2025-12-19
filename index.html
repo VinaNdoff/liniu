@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Christmas - Tuyết Rơi & Cử Chỉ Tim Hoàn Hảo</title>
+    <title>Magic Christmas - Tuyết Rơi Đẹp & Cử Chỉ Hoàn Hảo</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -198,7 +198,7 @@
             if (type === 'snow') {
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
                 grd.addColorStop(0, '#FFFFFF');
-                grd.addColorStop(0.5, '#F8F8F8');
+                grd.addColorStop(0.5, '#F0F0F0');
                 grd.addColorStop(1, 'rgba(255,255,255,0)');
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, 128, 128);
@@ -337,12 +337,12 @@
             const velocities = new Float32Array(count);
 
             for (let i = 0; i < count; i++) {
-                positions[i * 3]     = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
-                positions[i * 3 + 1] = Math.random() * 120 + 60; // Từ trên cao
-                positions[i * 3 + 2] = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
+                positions[i * 3] = Math.random() * 200 - 100;
+                positions[i * 3 + 1] = Math.random() * 120 + 60;
+                positions[i * 3 + 2] = Math.random() * 200 - 100;
 
-                sizes[i] = 2 + Math.random() * 4;
-                velocities[i] = 0.8 + Math.random() * 1.2;
+                sizes[i] = 3 + Math.random() * 4;
+                velocities[i] = 0.8 + Math.random() * 1.0;
             }
 
             const geo = new THREE.BufferGeometry();
@@ -351,7 +351,7 @@
             geo.userData.velocities = velocities;
 
             const mat = new THREE.PointsMaterial({
-                size: 5,
+                size: 6,
                 map: textures.snow,
                 transparent: true,
                 opacity: 0.9,
@@ -372,13 +372,13 @@
             const count = positions.length / 3;
 
             for (let i = 0; i < count; i++) {
-                positions[i * 3 + 1] -= velocities[i] * 0.08;
-                positions[i * 3] += Math.sin(time + i * 0.1) * 0.2;
+                positions[i * 3 + 1] -= velocities[i] * 0.1;
+                positions[i * 3] += Math.sin(time * 0.5 + i) * 0.3;
 
                 if (positions[i * 3 + 1] < -60) {
-                    positions[i * 3 + 1] = 80 + Math.random() * 60;
-                    positions[i * 3] = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
-                    positions[i * 3 + 2] = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
+                    positions[i * 3 + 1] = 100 + Math.random() * 50;
+                    positions[i * 3] = Math.random() * 200 - 100;
+                    positions[i * 3 + 2] = Math.random() * 200 - 100;
                 }
             }
             groupSnow.geometry.attributes.position.needsUpdate = true;
@@ -494,7 +494,7 @@
 
             if(groupGold) updateParticleGroup(groupGold, 'gold', state, speed, time);
             if(groupRed) updateParticleGroup(groupRed, 'red', state, speed, time);
-            if(groupGreen) updateParticleGroup(groupGreen, 'green', speed, time); 
+            if(groupGreen) updateParticleGroup(groupGreen, 'green', state, speed, time); 
             if(groupGift) updateParticleGroup(groupGift, 'gift', state, speed, time);
             updateSnow(time);
 
@@ -564,57 +564,42 @@
             const video = document.getElementsByClassName('input_video')[0];
             const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
             hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            hands.onResults(onHandResults);
+            hands.onResults(results => {
+                let detectedState = 'TREE'; 
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
+                    const h1 = results.multiHandLandmarks[0]; 
+                    const h2 = results.multiHandLandmarks[1];
+                    const distIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
+                    const distThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
+                    if (distIndex < 0.15 && distThumb < 0.15) detectedState = 'HEART';
+                }
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const lm = results.multiHandLandmarks[0]; // Dùng tay đầu tiên detect được
+                    targetHandX = lm[9].x;
+                    const tips = [8,12,16,20]; 
+                    const wrist = lm[0];
+                    let openDist = 0;
+                    tips.forEach(i => openDist += Math.hypot(lm[i].x - wrist.x, lm[i].y - wrist.y));
+                    const avgDist = openDist / 4;
+                    const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+                    if (avgDist < 0.25) detectedState = 'TREE';
+                    else if (pinchDist < 0.05) detectedState = 'PHOTO';
+                    else detectedState = 'EXPLODE';
+                } else {
+                    targetHandX = 0.5;
+                }
+
+                if (detectedState !== pendingState) {
+                    pendingState = detectedState;
+                    stateCounter = 0;
+                } else {
+                    stateCounter++;
+                    if (stateCounter > STATE_THRESHOLD) state = detectedState;
+                }
+            });
 
             const cameraUtils = new Camera(video, { onFrame: async () => { await hands.send({image: video}); }, width: 640, height: 480 });
-            cameraUtils.start().catch(() => {});
-        }
-
-        function onHandResults(results) {
-            let detectedState = 'TREE';
-            targetHandX = 0.5;
-
-            // Phát hiện trái tim: hai tay chụm ngón trỏ (index fingertip - landmark 8)
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length === 2) {
-                const left = results.multiHandLandmarks[0];
-                const right = results.multiHandLandmarks[1];
-                const dist = Math.hypot(left[8].x - right[8].x, left[8].y - right[8].y);
-                if (dist < 0.18) { // Ngưỡng rộng hơn để dễ detect hơn
-                    detectedState = 'HEART';
-                }
-            }
-
-            // Phát hiện tay đơn (ưu tiên tay phải nếu có)
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                let hand = results.multiHandLandmarks[0];
-                if (results.multiHandedness && results.multiHandedness.length > 1 && results.multiHandedness[1].label === 'Right') {
-                    hand = results.multiHandLandmarks[1];
-                } else if (results.multiHandedness && results.multiHandedness[0].label === 'Right') {
-                    hand = results.multiHandLandmarks[0];
-                }
-
-                targetHandX = hand[9].x; // cổ tay
-
-                const tips = [8,12,16,20]; // 4 ngón
-                const wrist = hand[0];
-                let openDist = 0;
-                tips.forEach(i => openDist += Math.hypot(hand[i].x - wrist.x, hand[i].y - wrist.y));
-                const avgDist = openDist / 4;
-
-                const pinchDist = Math.hypot(hand[4].x - hand[8].x, hand[4].y - hand[8].y);
-
-                if (avgDist < 0.22) detectedState = 'TREE'; // Nắm tay
-                else if (pinchDist < 0.06) detectedState = 'PHOTO'; // Pinch zoom ảnh
-                else detectedState = 'EXPLODE'; // Mở tay xem album
-            }
-
-            if (detectedState !== pendingState) {
-                pendingState = detectedState;
-                stateCounter = 0;
-            } else {
-                stateCounter++;
-                if (stateCounter > STATE_THRESHOLD) state = detectedState;
-            }
+            cameraUtils.start();
         }
 
         window.addEventListener('resize', () => {
