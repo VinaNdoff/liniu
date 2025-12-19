@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Christmas - Final Fixed</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script> <!-- Updated to newer version -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
@@ -87,9 +87,10 @@
         bgMusic.loop = true; bgMusic.volume = 1.0;
 
         const loader = new THREE.TextureLoader();
-        
+        loader.setCrossOrigin('anonymous'); // Added for better cross-origin handling
+
         // --- DANH SÁCH FILE ---
-        // Lưu ý: Tên file phải khớp chính xác (Hoa/Thường)
+        // Lưu ý: Tên file phải khớp chính xác (Hoa/Thường) - Đã giả sử lowercase để tương thích GitHub Pages
         const mediaFiles = [
             './image1.jpeg',     
             './video1.mp4',      
@@ -161,8 +162,10 @@
                     vidTexture.minFilter = THREE.LinearFilter;
                     vidTexture.magFilter = THREE.LinearFilter;
                     vidTexture.format = THREE.RGBFormat;
+                    vidTexture.needsUpdate = true; // Added for better texture update
                     
-                    mesh.material.map = vidTexture; // Gán texture (Line 170 cũ)
+                    mesh.material.map = vidTexture;
+                    mesh.material.needsUpdate = true; // CRITICAL: Added to fix line 162/170 issue
                     
                 } else {
                     logToScreen(`Đang load Ảnh: ${file}`);
@@ -429,15 +432,15 @@
 
             if(groupGold) updateParticleGroup(groupGold, 'gold', state, speed, time);
             if(groupRed) updateParticleGroup(groupRed, 'red', state, speed, time);
-            if(groupGreen) updateParticleGroup(groupGreen, 'green', state, speed, time); 
+            if(groupGreen) updateParticleGroup(groupGreen, 'green', speed, time); 
             if(groupGift) updateParticleGroup(groupGift, 'gift', state, speed, time);
 
             activeVideos.forEach(item => {
                 const { video, mesh } = item;
                 if(video.paused && video.readyState >= 2) { video.play().catch(e => {}); }
-                if (video.readyState >= video.HAVE_CURRENT_DATA) {
+                if (video.readyState >= video.HAVE_ENOUGH_DATA) { // Updated for better readiness check
                      mesh.visible = true; mesh.material.color.setHex(0xFFFFFF);
-                     if(mesh.material.map) mesh.material.map.needsUpdate = true;
+                     if(mesh.material.map) mesh.material.map.needsUpdate = true; // Added to force video frame update
                 }
             });
 
@@ -517,6 +520,11 @@
             cameraUtils.start()
                 .then(() => logToScreen("Camera đã chạy!"))
                 .catch(e => logToScreen(`LỖI CAMERA: ${e.message}`, 'error'));
+            
+            // Added for mobile camera permission
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => logToScreen("Camera OK trên thiết bị này"))
+                .catch(e => logToScreen(`LỖI CAMERA: ${e.message} - Thường do không HTTPS hoặc mobile block`, 'error'));
         }
 
         function checkOneHand(lm) {
