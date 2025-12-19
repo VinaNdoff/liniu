@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Christmas - Optimized with Snow Effect</title>
+    <title>Magic Christmas - From LINIU with luv ❤️</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -35,29 +35,29 @@
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        #camera-preview { display: none !important; }
         #video-hidden-container { display: none; }
 
-        /* DEBUG LOG */
+        /* DEBUG LOG - Mặc định ẩn */
         #debug-log {
             position: absolute; top: 0; left: 0; width: 100%; max-height: 40vh;
             overflow-y: auto; background: rgba(0, 0, 0, 0.7); color: #00FF00;
             font-family: monospace; font-size: 11px; padding: 8px;
             z-index: 9999; pointer-events: none; white-space: pre-wrap;
             transition: opacity 0.3s;
-            opacity: 0; /* Mặc định ẩn */
+            opacity: 0;
         }
         .log-err { color: #FF3333; font-weight: bold; }
         .log-warn { color: #FFFF00; }
 
-        /* Nút bật/tắt log - mờ, không nổi bật */
+        /* Nút log mờ */
         #debug-toggle {
             position: absolute; top: 10px; left: 10px; z-index: 10000; pointer-events: auto;
         }
         #debug-toggle button {
             all: unset; padding: 8px 14px; font-size: 12px;
             background: rgba(0,0,0,0.4); color: rgba(0,255,0,0.6); border: 1px solid rgba(0,255,0,0.4);
-            border-radius: 6px; cursor: pointer; transition: all 0.3s;
+            border-radius: 6px; cursor: pointer;
+            transition: all 0.3s;
         }
         #debug-toggle button:hover {
             background: rgba(0,0,0,0.6); color: rgba(0,255,0,0.9); border: 1px solid rgba(0,255,0,0.6);
@@ -74,7 +74,7 @@
 
     <div id="ui-layer">
         <div class="guide">
-            🖐 <b>Mở tay:</b> Xem Album (Gạt trái/phải) &nbsp;|&nbsp; 🫶 <b>Tim:</b> Yêu thương &nbsp;|&nbsp; ✊ <b>Nắm tay:</b> Cây thông
+            🖐 <b>Mở tay:</b> Xem Album (Gạt trái/phải) &nbsp;|&nbsp; 🫶 <b>Chụm hai tay:</b> Yêu thương &nbsp;|&nbsp; ✊ <b>Nắm tay:</b> Cây thông
         </div>
         <button id="btnStart" onclick="startSystem()">START MAGIC</button>
     </div>
@@ -82,7 +82,6 @@
     <div id="canvas-container"></div>
     
     <video class="input_video" style="display:none"></video>
-    <canvas id="camera-preview"></canvas>
     <div id="video-hidden-container"></div>
 
     <script>
@@ -110,10 +109,6 @@
             }
         }
 
-        window.onerror = function(msg, source, line) {
-            logToScreen(`CRITICAL ERROR: ${msg} (Line ${line})`, 'error');
-        };
-
         const MUSIC_URL = "./audio.mp3"; 
         let bgMusic = new Audio(MUSIC_URL);
         bgMusic.loop = true; bgMusic.volume = 1.0;
@@ -121,13 +116,8 @@
         const loader = new THREE.TextureLoader();
         loader.setCrossOrigin('anonymous');
 
-        // --- DANH SÁCH FILE ---
         const mediaFiles = [
-            './image1.jpg',     
-            './video1.mp4',      
-            './image2.jpg',      
-            './image3.jpg',      
-            './video2.mp4'      
+            './image1.jpg', './video1.mp4', './image2.jpg', './image3.jpg', './video2.mp4'
         ];
         
         let photoMeshes = [];    
@@ -137,15 +127,13 @@
             return filename.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/i);
         }
 
-        // 1. Tạo khung tranh (Lưới 3D) trước
         function initEmptyMeshes(scene) {
-            const geo = new THREE.PlaneGeometry(8, 8);
-            const borderGeo = new THREE.PlaneGeometry(9, 9); 
-            const borderMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 }); 
-
             mediaFiles.forEach((_, i) => {
                 const mat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, side: THREE.DoubleSide });
+                const geo = new THREE.PlaneGeometry(8, 8); // Ban đầu vuông, sẽ update sau khi load texture
                 const mesh = new THREE.Mesh(geo, mat);
+                const borderMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+                const borderGeo = new THREE.PlaneGeometry(9, 9); // Ban đầu, sẽ update tỷ lệ
                 const border = new THREE.Mesh(borderGeo, borderMat);
                 border.position.z = -0.1; 
                 mesh.add(border);
@@ -153,26 +141,21 @@
                 mesh.visible = false; 
                 mesh.scale.set(0,0,0);
                 
+                mesh.userData = { border: border }; // Lưu border để update sau
+
                 scene.add(mesh);
                 photoMeshes.push(mesh);
             });
             logToScreen(`Đã tạo ${photoMeshes.length} khung tranh.`);
         }
 
-        // 2. Sau đó mới tải nội dung đắp vào
         function loadMediaContent() {
             const container = document.getElementById('video-hidden-container');
 
             mediaFiles.forEach((file, i) => {
                 const mesh = photoMeshes[i];
 
-                if (!mesh) {
-                    logToScreen(`Lỗi: Không tìm thấy khung tranh thứ ${i}`, 'error');
-                    return;
-                }
-
                 if (isVideo(file)) {
-                    logToScreen(`Đang load Video: ${file}`);
                     const video = document.createElement('video');
                     video.src = file;
                     video.crossOrigin = "anonymous";
@@ -183,35 +166,36 @@
                     video.preload = "auto";
                     
                     container.appendChild(video);
-                    
-                    video.play().catch(e => logToScreen(`Video ${file} chưa chạy ngay: ${e.message}`, 'warn'));
+                    activeVideos.push({ video, mesh });
 
-                    activeVideos.push({ video: video, mesh: mesh });
+                    // Chờ video ready để lấy aspect ratio
+                    video.addEventListener('loadedmetadata', () => {
+                        const aspect = video.videoWidth / video.videoHeight;
+                        mesh.geometry = new THREE.PlaneGeometry(8 * aspect, 8);
+                        mesh.userData.border.geometry = new THREE.PlaneGeometry(9 * aspect, 9);
+                    });
+
+                    video.play().catch(() => {});
 
                     const vidTexture = new THREE.VideoTexture(video);
                     vidTexture.minFilter = THREE.LinearFilter;
                     vidTexture.magFilter = THREE.LinearFilter;
                     vidTexture.format = THREE.RGBFormat;
-                    vidTexture.needsUpdate = true;
-                    
+
                     mesh.material.map = vidTexture;
                     mesh.material.needsUpdate = true;
-                    
                 } else {
-                    logToScreen(`Đang load Ảnh: ${file}`);
-                    loader.load(
-                        file,
+                    loader.load(file,
                         (texture) => {
+                            const aspect = texture.image.width / texture.image.height;
+                            mesh.geometry = new THREE.PlaneGeometry(8 * aspect, 8);
+                            mesh.userData.border.geometry = new THREE.PlaneGeometry(9 * aspect, 9);
                             mesh.material.map = texture;
                             mesh.material.color.setHex(0xFFFFFF);
                             mesh.material.needsUpdate = true;
-                            logToScreen(`-> Ảnh ${file} OK`);
                         },
                         undefined,
-                        (err) => {
-                            logToScreen(`LỖI: Không tải được ${file}`, 'error');
-                            mesh.material.color.setHex(0xFF0000); 
-                        }
+                        () => {}
                     );
                 }
             });
@@ -222,7 +206,15 @@
             canvas.width = 128; canvas.height = 128;
             const ctx = canvas.getContext('2d');
             const cx = 64, cy = 64;
-            if (type === 'gold_glow') {
+
+            if (type === 'snow') {
+                const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
+                grd.addColorStop(0, '#FFFFFF');
+                grd.addColorStop(0.5, '#F0F0F0');
+                grd.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, 128, 128);
+            } else if (type === 'gold_glow') {
                 const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
                 grd.addColorStop(0, '#FFFFFF'); grd.addColorStop(0.2, '#FFFFE0'); grd.addColorStop(0.5, '#FFD700'); grd.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
@@ -238,10 +230,6 @@
                 ctx.fillStyle = '#D32F2F'; ctx.fillRect(20, 20, 88, 88);
                 ctx.fillStyle = '#FFD700'; ctx.fillRect(54, 20, 20, 88); ctx.fillRect(20, 54, 88, 20);
                 ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth=2; ctx.strokeRect(20,20,88,88);
-            } else if (type === 'snow') {
-                const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, 5);
-                grd.addColorStop(0, '#FFFFFF'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
             }
             return new THREE.CanvasTexture(canvas);
         }
@@ -255,9 +243,8 @@
         };
 
         const CONFIG = {
-            goldCount: 2000, redCount: 300, giftCount: 150, greenCount: 600, snowCount: 1000,
-            explodeRadius: 65, photoOrbitRadius: 25, treeHeight: 70, treeBaseRadius: 35,
-            snowFallSpeed: 1.5, snowArea: 200
+            goldCount: 1500, redCount: 250, giftCount: 120, greenCount: 500, snowCount: 1500,
+            explodeRadius: 65, photoOrbitRadius: 25, treeHeight: 70, treeBaseRadius: 35
         };
 
         let scene, camera, renderer;
@@ -269,7 +256,6 @@
         let pendingState = 'TREE'; let stateCounter = 0; const STATE_THRESHOLD = 10; 
 
         function init3D() {
-            logToScreen("Khởi tạo 3D Scene...");
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x000000, 0.002);
@@ -359,43 +345,53 @@
 
         function createSnowSystem() {
             const count = CONFIG.snowCount;
-            const pPositions = [];
-            const sizes = [];
-            const velocities = [];
+            const positions = new Float32Array(count * 3);
+            const sizes = new Float32Array(count);
+            const velocities = new Float32Array(count);
 
-            for(let i=0; i<count; i++) {
-                pPositions.push(Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2, Math.random() * 100 + 50, Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2);
-                sizes.push(1 + Math.random() * 2);
-                velocities.push(0.1 + Math.random() * 0.5);
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = Math.random() * 200 - 100;
+                positions[i * 3 + 1] = Math.random() * 120 + 60;
+                positions[i * 3 + 2] = Math.random() * 200 - 100;
+
+                sizes[i] = 3 + Math.random() * 4;
+                velocities[i] = 0.8 + Math.random() * 1.0;
             }
 
             const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pPositions, 3));
-            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-            geo.userData = { velocities: velocities };
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            geo.userData.velocities = velocities;
 
             const mat = new THREE.PointsMaterial({
-                size: 1, map: textures.snow, transparent: true, opacity: 0.8,
-                blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true
+                size: 6,
+                map: textures.snow,
+                transparent: true,
+                opacity: 0.9,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
             });
 
-            const points = new THREE.Points(geo, mat);
-            scene.add(points);
-            return points;
+            const snow = new THREE.Points(geo, mat);
+            scene.add(snow);
+            return snow;
         }
 
         function updateSnow(time) {
+            if (!groupSnow) return;
             const positions = groupSnow.geometry.attributes.position.array;
             const velocities = groupSnow.geometry.userData.velocities;
             const count = positions.length / 3;
 
-            for(let i = 0; i < count; i++) {
-                positions[i*3 + 1] -= velocities[i] * CONFIG.snowFallSpeed * 0.02; // Rơi xuống
-                positions[i*3] += Math.sin(time + i) * 0.05; // Sway ngang nhẹ
-                if (positions[i*3 + 1] < -50) { // Reset nếu rơi quá thấp
-                    positions[i*3 + 1] = 50 + Math.random() * 50;
-                    positions[i*3] = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
-                    positions[i*3 + 2] = Math.random() * CONFIG.snowArea - CONFIG.snowArea / 2;
+            for (let i = 0; i < count; i++) {
+                positions[i * 3 + 1] -= velocities[i] * 0.1;
+                positions[i * 3] += Math.sin(time * 0.5 + i) * 0.3;
+
+                if (positions[i * 3 + 1] < -60) {
+                    positions[i * 3 + 1] = 100 + Math.random() * 50;
+                    positions[i * 3] = Math.random() * 200 - 100;
+                    positions[i * 3 + 2] = Math.random() * 200 - 100;
                 }
             }
             groupSnow.geometry.attributes.position.needsUpdate = true;
@@ -505,8 +501,8 @@
             globalRotationY = lerp(globalRotationY, targetRotation, 0.1);
 
             if (!isRotationLocked && (state === 'EXPLODE' || state === 'PHOTO')) {
-                if (smoothHandX < 0.4) { targetIndexPosition -= 0.5; isRotationLocked = true; setTimeout(() => { isRotationLocked = false; }, 400); } 
-                else if (smoothHandX > 0.6) { targetIndexPosition += 0.5; isRotationLocked = true; setTimeout(() => { isRotationLocked = false; }, 400); }
+                if (smoothHandX < 0.4) { targetIndexPosition -= 0.5; isRotationLocked = true; setTimeout(() => isRotationLocked = false, 400); } 
+                else if (smoothHandX > 0.6) { targetIndexPosition += 0.5; isRotationLocked = true; setTimeout(() => isRotationLocked = false, 400); }
             }
 
             if(groupGold) updateParticleGroup(groupGold, 'gold', state, speed, time);
